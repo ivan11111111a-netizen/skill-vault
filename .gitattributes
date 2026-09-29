@@ -1,0 +1,5 @@
+# The only shell file in the repository is a git hook, and CRLF in its shebang breaks it.
+# Generated files must not fight normalization either. LF everywhere.
+* text=auto eol=lf
+*.sh text eol=lf
+*.py text eol=lf

@@ -1,0 +1,16 @@
+# Eval results and plugin wrappers are not versioned
+lab/reports/**/plugin/
+lab/reports/**/result.json
+lab/**/evals/results/
+**/__pycache__/
+*.pyc
+
+# Candidates under review (foreign code is not committed before approval)
+lab/candidates/*/
+lab/inbox/*
+!lab/inbox/.gitkeep
+!lab/inbox/README.md
+
+# Local settings
+.claude/settings.local.json
+.DS_Store

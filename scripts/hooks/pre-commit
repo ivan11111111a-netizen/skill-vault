@@ -1,0 +1,15 @@
+#!/usr/bin/env bash
+# INDEX.md must not drift from vault/: the picker reads only the index, and a
+# stale index means silently wrong picks, not a visible failure.
+#
+# Enable once:   git config core.hooksPath scripts/hooks
+# Disable:       git config --unset core.hooksPath
+
+PY="${PYTHON:-$(command -v python3 || command -v python)}"
+[ -n "$PY" ] || exit 0   # no python: don't block the commit
+
+ROOT="$(git rev-parse --show-toplevel)"
+"$PY" "$ROOT/scripts/build_index.py" --check >/dev/null 2>&1 && exit 0
+
+echo "pre-commit: INDEX.md drifted from vault/, run scripts/build_index.py" >&2
+exit 1
