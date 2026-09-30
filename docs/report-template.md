@@ -15,6 +15,19 @@ even on rejection: it saves reviewing the same skill again.
 One paragraph: what exactly the skill does that the model does not do without it.
 If there is nothing to say, the verdict is "reject" and the rest can stay empty.
 
+## Closest existing skills
+
+From `INDEX.md` and the installed skills, by the job they do. None close: say "none"
+and why.
+
+| Skill | Where | It has, the candidate lacks | The candidate has, it lacks | Track record |
+|---|---|---|---|---|
+| <name> | vault / personal / plugin | <concrete: rule, script, format> | <concrete> | <status, admitted, linked: N> |
+
+Recommendation: <take the new, retire the old / keep the old / keep both, for different
+jobs / settle with an eval>, because <one or two sentences>.
+Human's decision: <the answer to the question>.
+
 ## Audit
 
 | Severity | Finding | Where | Decision |

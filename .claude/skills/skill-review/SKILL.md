@@ -18,8 +18,9 @@ report in the language the user writes in.
 The goal is not "is this a good skill" but **does it add something over working
 without it** and **is it safe to keep in the vault**. Steps 0–3 are always required,
 and the decision is almost always made on them: needed after reading, take it; not
-needed, reject it. Step 4, a paid eval, is an exception for one case: the vault
-already has a skill for the same job and one of the two has to be chosen.
+needed, reject it. Step 4, a paid eval, is an exception for one case: an existing
+skill does the same job, reading did not settle which is better, and the human chose
+to settle it by measuring.
 
 ## Step 0. Quarantine
 
@@ -72,19 +73,44 @@ What matters here:
 
 ## Step 3. Verdict on usefulness (no eval)
 
-Answer two questions and put the answers in the report:
+First find what the candidate competes with. Read `INDEX.md` and go through the
+skills you can already see in your own skill list (personal, project, plugins).
+Name the 1–3 closest **by the job they do**, not by their names. If nothing is close,
+say so in the report.
 
-1. What exactly does this skill add beyond what the model already does? Name
-   something tangible: a script, a file format, a rule set, knowledge of an external API.
+Then answer two questions and put the answers in the report:
+
+1. What exactly does this skill add beyond what the model already does **and beyond
+   the closest existing skills**? Name something tangible: a script, a file format,
+   a rule set, knowledge of an external API.
 2. On what real task would the difference show?
 
-If there is nothing to answer to the first question, reject here. If there is, that
-is the grounds for admission: go on to the report, step 4 is not needed.
+If there is nothing to answer to the first question, reject here. If there is and
+nothing existing overlaps, that is the grounds for admission: go on to the report.
+
+**When the candidate overlaps an existing skill, you don't pick the winner.** Compare
+the two and put it to the human:
+
+- what each does that the other doesn't, with concrete evidence from the text
+  (a rule, a script, a format, a step), not impressions;
+- what each costs: body size (it stays in context for the rest of the session),
+  `allowed-tools`, scripts, audit findings;
+- the existing one's track record: its status, `admitted`, and `linked: N` from the
+  index; a skill in use outweighs a promising one on paper;
+- your recommendation, with its reasons in one or two sentences.
+
+Then ask one question with these options: take the new one and retire the old; keep
+the old one and reject the new; keep both, if they turn out to do different jobs
+(say which job each gets); or settle it with a paid eval (step 4), with your estimate
+of its cost. Wait for the answer; it decides whether step 4 happens and goes into the
+report. If the existing skill lives outside the vault (a personal or plugin skill),
+retiring it is the human's own step: say what it would be.
 
 ## Step 4. Eval (paid, by exception only)
 
-Only when the vault already has a skill for the same job and one of the two has to
-be chosen. In every other case the step is skipped.
+Only when the candidate overlaps an existing skill, reading did not settle which is
+better, and the human chose to settle it by measuring. In every other case the step
+is skipped. Run both skills on the same cases.
 
 ```
 python scripts/wrap_plugin.py lab/candidates/<name> --cases <category>
@@ -110,9 +136,9 @@ real model calls billed to them.
 ## Step 5. Report
 
 Put it in `lab/reports/<name>/<date>/report.md` following `docs/report-template.md`:
-the verdict, what it adds beyond the baseline, audit findings with paths and lines,
-Δ and cost (if there was an eval), the ready-made line for the vault. The verdict is
-one of:
+the verdict, what it adds beyond the baseline, the closest existing skills and the
+comparison with them, audit findings with paths and lines, Δ and cost (if there was
+an eval), the ready-made line for the vault. The verdict is one of:
 
 - **take**: step 3 named something tangible beyond the baseline, the audit is clean;
 - **take with changes**: name the changes (narrow `allowed-tools`, remove `!`
@@ -131,6 +157,10 @@ python scripts/promote.py lab/candidates/<name> --status trial \
 If there was an eval, pass `--delta <Δ> --cases <category>` instead of
 `--admitted audited`; the grounds are then recorded as `measured`. `promote.py`
 takes the source and commit from `.skill-lib-origin` itself.
+
+If the human chose to retire an old vault skill, set `status: deprecated` in
+`vault/<old>/.skill-lib.yml` (or `git rm -r vault/<old>` if they want it gone) and
+rebuild the index.
 
 A new skill enters the vault as `trial`, not `approved`. The human moves it to
 `approved` after a few real tasks, by editing `status` in `vault/<name>/.skill-lib.yml`.

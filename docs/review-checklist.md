@@ -36,8 +36,9 @@ Always read: `SKILL.md` in full and **every** file under `scripts/`.
       "be careful" and "follow best practices"?
 - [ ] On what real task would the difference show? If none comes to mind,
       reject here, before any eval.
-- [ ] Does the vault already hold a skill that does the same? If so, compare them
-      on the same cases and keep one.
+- [ ] Compared with the closest existing skills (`INDEX.md` and the installed ones)?
+      On an overlap the human decides which stays, after a comparison with concrete
+      evidence: see step 3 of `/skill-review`.
 
 ## Hygiene
 
