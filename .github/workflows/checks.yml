@@ -13,7 +13,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, windows-latest]
+        # pinned: newer Ubuntu images may not ship Python 3.9, the README's minimum
+        os: [ubuntu-24.04, windows-latest]
         python: ["3.9", "3.x"]
     runs-on: ${{ matrix.os }}
     steps:
