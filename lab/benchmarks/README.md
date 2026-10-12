@@ -15,6 +15,33 @@ lab/benchmarks/
 `example/` is a template full of placeholders. `wrap_plugin.py` skips it unless
 asked for it by name: an eval over placeholders costs money and means nothing.
 
+## A working folder prepared in advance
+
+Every run starts in an empty folder. When the task needs a repository to work on,
+`case.yaml` names a script that builds it; the prompt, run limits and graders stay in
+`prompt.md` and `graders/`, and the three merge into one case:
+
+```yaml
+schema_version: "1.0"
+name: <case>
+context:
+  scaffold_script: scaffold.sh   # a path inside the case folder
+```
+
+- The script runs with `bash`, from the run's empty folder, with a throwaway `HOME`,
+  and **only when the eval gets `--scaffold`**. The command `wrap_plugin.py` prints does
+  not add it; without it the case runs against an empty folder and the score means
+  nothing. Commit the fixture inside the script (`git init`, a local `user.name` and
+  `user.email`) if the task is about git.
+- `prompt.md` frontmatter accepts only `schema_version`, `name`, `description`,
+  `tags`, `plugins`, `runs`, `expected_outcome`, `model`, `max_turns`,
+  `timeout_seconds`, `allowed_tools`, `artifact_publish`, `growthbook_overrides`,
+  `append_system_prompt` and `env` (Claude Code 2.1.296); an unknown key fails the
+  whole case. `context` lives only in `case.yaml`.
+- Check the case for free before any paid run: run `scaffold.sh` in a scratch folder,
+  then apply the file graders to the untouched tree (the ones that should fail, fail)
+  and to a result you made by hand (all pass).
+
 ## Rules that save money and nerves
 
 - **Two graders per case at least**: one on the result (`regex` over a file or `llm`
@@ -43,9 +70,22 @@ asked for it by name: an eval over placeholders costs money and means nothing.
 - **Check the judge's verdicts by eye before trusting Δ.** `result.json` keeps the
   answer the judge saw (`evidence`) but not its reasoning. In doubt, re-judge the saved
   answers: that costs cents, not a rerun of the agents.
+- **A bigger judge is not the cure either.** With one decision per grader and
+  `--judge-model claude-sonnet-5`, the judge still voted FAIL three times out of three
+  on traits plainly present in one arm's answers, and Δ came out −0.25 where reading
+  gave +0.08. Run with `--keep-temp`, pull the final answers from `out/trace.jsonl`,
+  read them, and report the by-eye score when it disagrees.
+- **Don't punish a method for its order.** A grader asking "do the named causes have a
+  check?" failed a method that deliberately defers causes until it can reproduce but
+  says up front how it will test them. Word the trait so either shape passes.
 - **Describe a disqualifier by its substance, not by an example wording.** "E.g.
   'reproduce or infer from logs'" was read as "look for the word 'or'", and the same
   fork expressed by the order of the steps went unnoticed.
+- **A regex over hex values misses named colors.** An agent writing Tailwind names
+  its palette in the config (`cream: '#F6EFE4'`, then `bg-cream` on `<body>`), so a
+  list of hex codes passed a cream page as clean. Match the token name where it is used
+  as well. Regex graders are deterministic: after fixing one, re-grade the saved
+  outputs locally instead of re-running the agents.
 - **The path grader matters more than it seems.** In one run the skill never fired,
   and Δ = 0 compared two identical arms. Without the `tool_used: Skill` indicator it
   would have read as an honest "the skill is useless". If the indicator is `false`,
@@ -53,6 +93,11 @@ asked for it by name: an eval over placeholders costs money and means nothing.
 - **The task must be work, not a question.** A prompt like "briefly, where would you
   start?" is closed in one turn, tool choice never happens, and no skill fires. Ask
   for something to be done, not described.
+- **A case that grants a shell does not run on native Windows.** With `Bash` in
+  `allowed_tools` and in `--allow-tools`, the eval refuses every run before its first
+  turn ("sandbox required but unavailable"): nothing is spent and nothing is measured.
+  Such cases run in WSL2, macOS or Linux. Grant the shell narrowly even there
+  (`"Bash(git:*)"`, `"Bash(python:*)"`), not `Bash` as a whole.
 - `--runs 1` is only for debugging the graders themselves. For a verdict, at least 2.
 - Pin the model (`--model`), or a model change will look like a regression.
 

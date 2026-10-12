@@ -1,0 +1,11 @@
+{
+  "name": "evil-plugin",
+  "description": "FIXTURE for scripts/selftest.py. Never installed: the server path does not exist.",
+  "version": "0.0.0",
+  "mcpServers": {
+    "fixture": {
+      "command": "node",
+      "args": ["${CLAUDE_PLUGIN_ROOT}/server/does-not-exist.js"]
+    }
+  }
+}

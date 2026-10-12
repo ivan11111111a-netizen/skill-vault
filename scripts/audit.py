@@ -77,6 +77,11 @@ RULES: list[tuple[str, str, str, str]] = [
      r"openxmlformats\.org|microsoft\.com|purl\.org|xml\.org|oasis-open\.org|json-schema\.org)(/|\b))"
      r"[a-z0-9.-]+\.[a-z]{2,}",
      "mentions a third-party domain"),
+    ("remote-instructions", "high",
+     r"(?i)raw\.githubusercontent\.com/[^\s/]+/[^\s/]+/(main|master|HEAD)/|"
+     r"\b(webfetch|fetch|download|retrieve|curl|wget|скача\w*|загрузи\w*)\b[^\n]{0,80}"
+     r"\b(rules|instructions|guidelines|prompt|правил\w*|инструкци\w*)\b",
+     "takes its instructions from the network at run time: what runs is not what was reviewed"),
 
     # --- destructive or outside the project
     ("destructive", "high",
@@ -92,6 +97,14 @@ RULES: list[tuple[str, str, str, str]] = [
     ("chmod-sudo", "medium",
      r"\bsudo\b|chmod\s+[0-7]*7[0-7]*|chmod\s+\+x",
      "changes permissions or needs sudo"),
+
+    # --- the plugin around the skill
+    # Survives a split out of a marketplace: the text still names the plugin root,
+    # while the scripts and hooks it means stayed behind in the clone.
+    ("plugin-root-ref", "medium",
+     r"\$\{?CLAUDE_PLUGIN_ROOT\b",
+     "uses files from its plugin's root: they are not in this folder, and outside a plugin "
+     "the variable is empty"),
 
     # --- pressure on the reviewer
     ("prompt-injection", "high",
@@ -132,11 +145,13 @@ def looks_binary(p: Path) -> bool:
     return b"\0" in chunk
 
 
-def split_files(root: Path) -> tuple[list[Path], list[Path], list[Path]]:
-    """Return (text, binary, too large)."""
+def split_files(root: Path, exclude: tuple[Path, ...] = ()) -> tuple[list[Path], list[Path], list[Path]]:
+    """Return (text, binary, too large), skipping everything under `exclude`."""
     text, binary, large = [], [], []
     for p in sorted(root.rglob("*")):
         if not p.is_file() or ".git" in p.parts:
+            continue
+        if any(ex in p.parents for ex in exclude):
             continue
         try:
             size = p.stat().st_size
@@ -170,9 +185,16 @@ def collapse(findings: list[dict]) -> list[dict]:
     return out
 
 
-def scan(cand: Path) -> dict:
+def scan(cand: Path, prefix: str = "", exclude: tuple[Path, ...] = (),
+         skip: frozenset[str] = frozenset()) -> dict:
+    """Line rules, binaries and large files under `cand`. `prefix` marks paths that
+    lie outside the skill itself (the plugin root), so the report says where;
+    `skip` names rules that make no sense there."""
     findings: list[dict] = []
-    files, binaries_p, large = split_files(cand)
+    files, binaries_p, large = split_files(cand, exclude)
+
+    def rel(p: Path) -> str:
+        return prefix + p.relative_to(cand).as_posix()
 
     for f in files:
         try:
@@ -183,28 +205,28 @@ def scan(cand: Path) -> dict:
             if len(line) > 4000:
                 findings.append({
                     "id": "long-line", "severity": "medium",
-                    "file": f.relative_to(cand).as_posix(), "line": n,
+                    "file": rel(f), "line": n,
                     "why": "line longer than 4000 characters, a typical sign of obfuscation",
                     "text": line[:120],
                 })
                 continue
             for rid, sev, rx, why in COMPILED:
-                if rx.search(line):
+                if rid not in skip and rx.search(line):
                     findings.append({
                         "id": rid, "severity": sev,
-                        "file": f.relative_to(cand).as_posix(), "line": n,
+                        "file": rel(f), "line": n,
                         "why": why, "text": line.strip()[:160],
                     })
 
-    binaries = [p.relative_to(cand).as_posix() for p in binaries_p]
+    binaries = [rel(p) for p in binaries_p]
     groups: dict[tuple[str, str], list[str]] = {}
     for p in binaries_p:
-        rel = p.relative_to(cand)
-        groups.setdefault((rel.parent.as_posix(), rel.suffix.lower() or "no extension"), []).append(rel.name)
+        r = p.relative_to(cand)
+        groups.setdefault((r.parent.as_posix(), r.suffix.lower() or "no extension"), []).append(r.name)
     for (folder, suffix), names in sorted(groups.items()):
         finding = {
             "id": "binary", "severity": "high",
-            "file": (folder + "/" if folder != "." else "") + f"*{suffix}", "line": 0,
+            "file": prefix + (folder + "/" if folder != "." else "") + f"*{suffix}", "line": 0,
             "why": "binary files cannot be read by eye",
             "text": ", ".join(sorted(names)[:3]) + ("…" if len(names) > 3 else ""),
         }
@@ -214,11 +236,50 @@ def scan(cand: Path) -> dict:
     for p in large:
         findings.append({
             "id": "large-file", "severity": "medium",
-            "file": p.relative_to(cand).as_posix(), "line": 0,
+            "file": rel(p), "line": 0,
             "why": f"{p.stat().st_size // 1024} KB, not read by the audit", "text": "",
         })
 
     return {"findings": collapse(findings), "files": len(files), "binaries": binaries}
+
+
+# <plugin>/skills/<skill>/SKILL.md puts the plugin root two levels up; one spare
+# level for nested layouts, and no further, or a stray plugin.json far above
+# would claim every skill below it.
+PLUGIN_UP = 3
+
+
+def plugin_root(cand: Path) -> Path | None:
+    """The nearest folder at or above the candidate that is a Claude Code plugin."""
+    stop = repo_root()
+    for d in [cand, *cand.parents][:PLUGIN_UP + 1]:
+        if d == stop:
+            break
+        if (d / ".claude-plugin" / "plugin.json").is_file():
+            return d
+    return None
+
+
+def plugin_hooks(root: Path) -> list[dict]:
+    """A plugin's hooks run in every session once it is enabled, whether or not
+    any of its skills is invoked, so the skill's own frontmatter never shows them."""
+    manifest = root / ".claude-plugin" / "plugin.json"
+    try:
+        declared = "hooks" in json.loads(manifest.read_text(encoding="utf-8", errors="replace"))
+    except (OSError, ValueError, TypeError):
+        declared = False
+    out = []
+    for path, present in ((root / "hooks" / "hooks.json", (root / "hooks" / "hooks.json").is_file()),
+                          (manifest, declared)):
+        if present:
+            out.append({
+                "id": "plugin-hooks", "severity": "high",
+                "file": "plugin:" + path.relative_to(root).as_posix(), "line": 0,
+                "why": "the plugin registers hooks: once enabled they run in every session, "
+                       "outside the sandbox, even if this skill is never invoked",
+                "text": "",
+            })
+    return out
 
 
 def analyse(cand: Path) -> dict:
@@ -231,6 +292,22 @@ def analyse(cand: Path) -> dict:
 
     res = {"name": meta["name"], "hash": meta["hash"], "lines": meta["lines"]}
     res.update(scan(cand))
+
+    # A skill audited inside a marketplace clone: the plugin around it ships
+    # manifests, hooks, servers and scripts that sit above the skill folder.
+    # Its other skills are left out, they are candidates of their own.
+    root = plugin_root(cand)
+    res["plugin_root"] = root.as_posix() if root else None
+    res["plugin_files"] = 0
+    if root is not None:
+        if root != cand:
+            # the plugin's own files name its root by design
+            outer = scan(root, prefix="plugin:", exclude=(root / "skills", cand),
+                         skip=frozenset({"plugin-root-ref"}))
+            res["findings"].extend(outer["findings"])
+            res["binaries"].extend(outer["binaries"])
+            res["plugin_files"] = outer["files"]
+        res["findings"].extend(plugin_hooks(root))
 
     # Dynamic injections run BEFORE Claude sees the text.
     # Known limitation: a skill that WRITES ABOUT this technique trips it itself,
@@ -321,6 +398,9 @@ def main() -> int:
         return 1 if res["counts"]["high"] else 0
 
     print(f"== audit: {res['name']} ({res['files']} files, {res['lines']} lines, hash {res['hash']})")
+    if res["plugin_root"]:
+        print(f"   inside a plugin: {res['plugin_root']} "
+              f"({res['plugin_files']} more files read, paths marked plugin:)")
     order = {"high": 0, "medium": 1, "low": 2}
     for f in sorted(res["findings"], key=lambda x: (order[x["severity"]], x["file"], x["line"])):
         loc = f["file"] + (f":{f['line']}" if f["line"] else "")

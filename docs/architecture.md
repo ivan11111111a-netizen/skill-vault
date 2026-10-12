@@ -70,6 +70,9 @@ A skill is an executable thing, not a note:
   they sit in the working tree. A cloned candidate with such a file becomes a source
   of instructions **before** anyone has reviewed it. That is why `quarantine.py`
   renames them to `*.quarantined`: readable by eye, never picked up on their own.
+  The same holds for a candidate's own `.claude/` folder: Claude Code discovers skills
+  in nested `.claude/skills/` once you work with files in that tree, so it is renamed
+  to `.claude.quarantined/` too.
 
 So a candidate never sits in `.claude/skills/` and its scripts never run before it is
 read. The isolation of `claude plugin eval` guards against the agent's actions but
@@ -166,6 +169,17 @@ is checked by nothing. To check one: `python scripts/audit.py lab/selftest/evil-
 --json` and look for its `id`. One rule is uncovered on purpose: `large-file` (it needs
 a file over 2 MB).
 
+**The plugin around a skill.** A skill audited inside a plugin (the nearest
+`.claude-plugin/plugin.json` at most three levels up, never at or above the repository
+root) brings the plugin root into the scan: its files outside `skills/` are read with
+the same rules and reported as `plugin:<path>`, and `hooks/hooks.json` or a `hooks` key
+in the manifest gives `plugin-hooks` (high). The plugin's other skills stay out, they
+are candidates of their own. A copy split out by `quarantine.py` has lost the plugin;
+then only the line rule `plugin-root-ref` (`${CLAUDE_PLUGIN_ROOT}` in the text) says
+something stayed behind. The second fixture, `lab/selftest/evil-plugin/`, holds a clean
+skill in a dangerous plugin; `selftest.py` counts only its `plugin:` findings there, so
+a pass proves the root was read.
+
 **Windows.**
 - `.gitattributes` keeps `eol=lf`: the git hook is the only shell file, and CRLF in its
   shebang breaks it. Lost exec bits are handled by `git config core.fileMode false`.
@@ -174,5 +188,7 @@ a file over 2 MB).
   copies and sets `.skill-lib-copy`.
 - Files inside `.git` are read-only: `shutil.rmtree` fails on them, so delete with a
   handler that clears the attribute (as `quarantine.py` does).
-- There is no Bash sandbox, but only `claude plugin eval` with `--allow-tools Bash`
-  runs into that.
+- There is no Bash sandbox, and `claude plugin eval` refuses a case that is granted a
+  shell (`--allow-tools Bash` or a `Bash(...)` pattern): every run stops before its
+  first turn ("sandbox required but unavailable"), costing nothing. Cases that need a
+  shell run in WSL2, macOS or Linux.

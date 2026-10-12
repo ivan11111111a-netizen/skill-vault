@@ -14,6 +14,10 @@ Always read: `SKILL.md` in full and **every** file under `scripts/`.
 - [ ] MCP servers (`mcpServers`, `.mcp.json`) and edits to `.claude/settings.json`:
       the same. They run outside the sandbox and outlive the eval. A passed eval says
       nothing about their safety.
+- [ ] A skill from a plugin: the plugin root too (`.claude-plugin/plugin.json`,
+      `hooks/hooks.json`, `scripts/`, servers). Plugin hooks run in every session once
+      it is enabled, invoked skill or not, and the skill's frontmatter never shows them.
+      `${CLAUDE_PLUGIN_ROOT}` in the text means files outside the skill folder.
 - [ ] Scripts: network, reading `~/.ssh`, `~/.aws`, `.env`, `~/.claude/`, sending
       data out, `curl | bash`, `eval`, `base64 -d`.
 - [ ] Writes outside the working folder: `.bashrc`, `crontab`, `systemctl`, `launchctl`,

@@ -22,7 +22,8 @@ happens in other projects; this file is not loaded there.
 - A candidate lives only in `lab/candidates/`. It reaches `.claude/skills/` no sooner
   than it has been read by `docs/review-checklist.md`, and its scripts don't run before that.
 - Only `scripts/quarantine.py` puts things into quarantine: it renames the candidate's
-  `CLAUDE.md` and `AGENTS.md`, otherwise they become instructions before any review.
+  `CLAUDE.md`, `AGENTS.md` and nested `.claude/` folders, otherwise they become
+  instructions and skills before any review.
 - `claude plugin eval` only on the human's explicit "yes", always with `--max-cost-usd`
   and `--no-publish`.
 - Moving into `vault/` and removing from it is the human's decision; the scripts only

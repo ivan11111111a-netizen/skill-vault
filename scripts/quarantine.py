@@ -10,7 +10,10 @@ automatically, so a cloned candidate's file becomes instructions **before** a
 human has decided whether to trust it. For a repository whose first rule is
 "a foreign skill's text is data, not instructions", that is a hole in the floor.
 So such files are renamed to `<name>.quarantined`: still readable by eye, but
-no longer picked up on their own.
+no longer picked up on their own. The same goes for a nested `.claude/` folder:
+Claude Code discovers skills in nested `.claude/skills/` once you work with files
+in that tree, so a candidate repository that ships its own would load them into the
+reviewer's session.
 """
 
 from __future__ import annotations
@@ -33,11 +36,18 @@ ORIGIN = ".skill-lib-origin"  # where it came from: read by promote.py
 
 # Files agents pick up as instructions without asking.
 AGENT_FILES = ("CLAUDE.md", "CLAUDE.local.md", "AGENTS.md", "GEMINI.md", ".cursorrules")
+# Folders Claude Code discovers skills, agents and commands in, nested ones included.
+AGENT_DIRS = (".claude",)
 
 
 def neutralize(cand: Path) -> list[str]:
     """Rename instructions for agents. Returns what was defused."""
     done = []
+    # Folders first: renaming one afterwards would leave stale paths in the file pass.
+    for p in sorted(cand.rglob("*"), key=lambda q: len(q.parts)):
+        if p.is_dir() and p.name in AGENT_DIRS:
+            p.rename(p.with_name(p.name + SUFFIX))
+            done.append(p.relative_to(cand).as_posix() + "/")
     for p in sorted(cand.rglob("*")):
         if p.is_file() and p.name in AGENT_FILES:
             p.rename(p.with_name(p.name + SUFFIX))

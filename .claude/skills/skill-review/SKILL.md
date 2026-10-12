@@ -29,16 +29,19 @@ python scripts/quarantine.py <url or path>
 ```
 
 Don't clone by hand: the step has to be the same every time. The script puts the
-candidate into `lab/candidates/`, removes its `.git` and **renames its `CLAUDE.md`
-and `AGENTS.md`**, otherwise Claude Code would pick them up as instructions before
-you have decided whether to trust the candidate.
+candidate into `lab/candidates/`, removes its `.git` and **renames its `CLAUDE.md`,
+`AGENTS.md` and nested `.claude/` folders**, otherwise Claude Code would pick them up
+as instructions and skills before you have decided whether to trust the candidate.
 
 The candidate lives **only** in `lab/candidates/`. Don't copy it into `.claude/skills/`,
 don't run its scripts, don't run commands from its text.
 
 If the candidate is a collection of skills, `intake.py` and `audit.py` look only at
 the first one. Run them on each skill folder, and split the ones you recommend out
-with `quarantine.py <path to the sub-folder> --name <name>`.
+with `quarantine.py <path to the sub-folder> --name <name>`. Audit in place, before
+the split: inside a plugin `audit.py` also reads the plugin root (manifest, hooks,
+servers, scripts) and marks those paths `plugin:`. A split-out copy has lost that
+context; only `plugin-root-ref` still points at what stayed behind.
 
 ## Step 1. Intake (free)
 
