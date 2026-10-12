@@ -1,5 +1,8 @@
 # skill-vault
 
+[![checks](https://github.com/ivan11111111a-netizen/skill-vault/actions/workflows/checks.yml/badge.svg)](https://github.com/ivan11111111a-netizen/skill-vault/actions/workflows/checks.yml)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+
 A personal skill vault for [Claude Code](https://code.claude.com), with quarantine
 at the door.
 
