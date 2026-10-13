@@ -30,7 +30,7 @@ EXPECTED = [
     # the plugin around the skill
     "plugin-root-ref",
     # pressure on the reviewer
-    "prompt-injection", "self-approval",
+    "prompt-injection", "self-approval", "hidden-unicode",
     # derived from parsing the skill rather than from the regexes
     "shell-injection", "file-reference", "hooks", "allowed-tools", "mcp-server",
     "thin",

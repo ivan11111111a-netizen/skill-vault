@@ -116,6 +116,11 @@ RULES: list[tuple[str, str, str, str]] = [
      r"(?i)(this skill is (safe|trusted|verified)|полностью безопас|не требует проверки|"
      r"доверенн\w+ источник)",
      "the skill vouches for its own safety"),
+    # zero-width, bidi overrides and isolates, tag characters (ASCII smuggling);
+    # a BOM at the start of a line is just an encoding marker, so it is let through
+    ("hidden-unicode", "high",
+     r"[​-‏‪-‮⁠-⁤⁦-⁩\U000e0000-\U000e007f]|(?!^)﻿",
+     "invisible characters: text the reviewer does not see, but the model reads"),
 ]
 
 COMPILED = [(i, s, re.compile(p), d) for i, s, p, d in RULES]
